@@ -29,7 +29,7 @@ The system consists of three integrated parts:
 
 ## Installation
 
-Add `main/qio_padding` to `main/ and qio_alignment.cmake` to the project root.
+Add `main/qio_padding` to `main/` and `qio_alignment.cmake` to the project root.
 `CMakeLists.txt` overwrites the original `CMakeLists.txt`.
 
 ---
@@ -70,6 +70,12 @@ Ensure your project is built, then run the script from the project root:
 The script specifically looks at `squeezelite.bin` and `recovery_padded.bin`, applying a shift calculation to Segments 1 and 4.
 
 The logic isn't 100% conclusive, some binaries have other offsets when flashed.
+
+### Effects
+
+RODATA_PADDING increases the length of Segment 1 (DROM) and shifts file_offs of Segments 2-7
+IROM_PADDING increases the length of Segment 4 (IROM) and shifts file_offs of Segments 5-7
+IRAM_PADDING increases the length of Segment 5 (IRAM) and shifts file_offs of Segments 6-7
 
 ---
 
