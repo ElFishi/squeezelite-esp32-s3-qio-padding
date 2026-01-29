@@ -14,7 +14,7 @@ def analyze_files():
 
     for bin_file in target_files:
         print(f"\n--- Analyzing: {bin_file} ---")
-        
+
         if not os.path.exists(bin_file):
             print(f"Error: {bin_file} not found. Skipping...", file=sys.stderr)
             continue
@@ -33,38 +33,26 @@ def analyze_files():
 
         for line in output.splitlines():
             clean_line = line.strip()
-            
+
             if clean_line.startswith("Segment"):
                 match = data_pattern.search(clean_line)
-                flags = []
-                
+                flags = ""
+
                 if match:
                     length = int(match.group(1), 16)
-                    orig_file_offs = int(match.group(3), 16)
-                    
-                    # Special treatment for Segment 1 and Segment 4
-                    # Shift file_offs from ending in 0x18 to 0x20 for calculation
-                    if clean_line.startswith("Segment 1:") or clean_line.startswith("Segment 4:"):
-                        # We replace the last bits to ensure it ends in 0x20
-                        # Calculation: (offs & ~0xFF) + 0x20 or simply orig + 8 if it was 0x18
-                        file_offs = (orig_file_offs & ~0x1F) + 0x20
-                    else:
-                        file_offs = orig_file_offs
+                    file_offs = int(match.group(3), 16)
 
-                    # 1) Check if len % 16 == 12 (0xc)
-                    if length % 16 == 12:
-                        flags.append("len")
+                    paddr = file_offs + 8
 
-                    # 2) Check if (len + shifted_file_offs) % 16 == 12 (0xc)
-                    if (length + file_offs) % 16 == 12:
-                        flags.append("end")
+                    # Check if segment end is closer than 8 bytes to 32-byte block end;
+                    if (length + paddr) % 0x20 > 0x18:
+                        flags += ("⚠ ")
 
-                if flags:
-                    flag_str = f"[{' '.join(flags)}]"
-                    padding = max(1, TARGET_COL - len(clean_line))
-                    print(f"{clean_line}{' ' * padding}{flag_str}")
-                else:
-                    print(clean_line)
+                print(
+                    " ".join(clean_line.split(" ")[:8])
+                    + flags + " "
+                    + " ".join(clean_line.split(" ")[8:])
+                )
 
 if __name__ == "__main__":
     analyze_files()

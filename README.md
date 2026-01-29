@@ -1,13 +1,22 @@
-# squeezelite-esp32-s3-qio-padding
-
 # QIO Alignment & Memory Padding 
 
 These files implement a custom padding mechanism designed to resolve alignment issues encountered when building squeezelite-esp32 for the ESP32-S3 with idf 4.x.
-QIO mode is sensitive to the segments of the binaries ending with proper alignment.
+QIO mode is sensitive to the segments of the binaries ending with proper alignment. This system allows you to "nudge" memory segments by injecting controlled buffers into specific memory sections via CMake flags.
 
 ## Overview
 
-In certain hardware configurations, the alignment of code segments in Flash or IRAM can impact stability or prevent the bootloader from verifying the application signature. This system allows you to "nudge" memory segments by injecting controlled buffers into specific memory sections via CMake flags.
+When building binaries with epressif idf 4.x for squeezelite-esp32 targeted for an ESP32-S3 with flash_mode QIO switching from recovery to squeezelite and vice versa may fail with an error like
+```
+E (18344) esp_image: invalid segment length 0x5f676e69
+E (18344) messaging: Unable to select partition for reboot: ESP_ERR_OTA_VALIDATE_FAILED
+```
+qio_padding introduces flags to add some bytes to the various segments to prevent this error.
+
+In addition the build option `--secure-pad-v2` is added to `CMaleLists.txt`. While not directly meant for this purpose, this option prevents misalignments at the end of the binaries leading to failures like
+```
+E (12515) esp_image: Image hash failed - image is corrupt
+E (12525) messaging: Unable to select partition for reboot: ESP_ERR_OTA_VALIDATE_FAILED
+```
 
 ### Supported Padding Sections
 * **RODATA**: Constant data in Flash.
@@ -36,7 +45,20 @@ Add `main/qio_padding` to `main/` and `qio_alignment.cmake` to the project root.
 
 ## Usage
 
-You can apply padding during the build process by passing the desired sizes (in bytes) to the idf.py command.
+You can apply padding during the build process by passing the desired sizes (in bytes) to the idf.py command. Provided flags for `idf.py build` are 
+> `-DRODATA_PADDING=n`  
+`-DIRAM_PADDING=n`  
+`-DIROM_PADDING=n`  
+`-RTC_PADDING=n`  
+
+with n being the number of bytes to be inserted.
+
+### Effects
+
+RODATA_PADDING increases the length of Segment 1 (DROM) and shifts file_offs of Segments 2-7  
+IROM_PADDING increases the length of Segment 4 (IROM) and shifts file_offs of Segments 5-7  
+IRAM_PADDING increases the length of Segment 5 (IRAM) and shifts file_offs of Segments 6-7  
+RTC_PADDING is not really useful 😞
 
 ### Build Examples
 
@@ -47,8 +69,8 @@ To nudge both IRAM and Flash Code sections:
 > `idf.py build -DIRAM_PADDING=24 -DIROM_PADDING=8`
 
 To reset and build without padding:
-> `idf.py fullclean`
-> `idf.py build`
+> `idf.py fullclean`  
+`idf.py build`
 
 make sure to remove old builds before building with new parameters
 > rm -r build
@@ -56,26 +78,19 @@ make sure to remove old builds before building with new parameters
 
 ## Binary Analysis Tool
 
-A Python utility **image-info.py** is provided to analyze the resulting `.bin` files and detect alignment conflicts that could cause QIO or Secure Boot failures.
+A Python utility **image-info.py** is provided to analyze the resulting `.bin` files and detect alignment conflicts that are likely to cause QIO boot failures.
 
 ### What it checks:
-The script parses the output of `esptool.py image_info` and flags segments that meet high-risk alignment criteria:
-* **[len]**: Flagged if the segment length % 16 == 12.
-* **[end]**: Flagged if the (length + file_offset) % 16 == 12.
+The script parses the output of `esptool.py image_info` and flags segments that are likely to fail with **⚠**.
+
+The reason for failure is the bootloader for the S3 expecting all segments to be 32-byte aligned with respect to the 8-byte header following one segment, preceding the next. If the end of a segment ends less than 8 bytes before the next 32-byte block, the header gets split, the bootloader fails to read the header correctly and fails with `invalid segment length`. The aim of the padding is thus to nudge each segment wrt length and offset that the end is 0xc or less. To calculate the end of each segment the script considers that the paddr of each segment is found 8 bytes higher that file_offs would suggest. 
+
 
 ### Running the Analysis:
 Ensure your project is built, then run the script from the project root:
 > `python3 image-info.py`
 
-The script specifically looks at `squeezelite.bin` and `recovery_padded.bin`, applying a shift calculation to Segments 1 and 4.
-
-The logic isn't 100% conclusive, some binaries have other offsets when flashed.
-
-### Effects
-
-RODATA_PADDING increases the length of Segment 1 (DROM) and shifts file_offs of Segments 2-7
-IROM_PADDING increases the length of Segment 4 (IROM) and shifts file_offs of Segments 5-7
-IRAM_PADDING increases the length of Segment 5 (IRAM) and shifts file_offs of Segments 6-7
+The script specifically looks at `build/squeezelite.bin` and `build/recovery_padded.bin`.
 
 ---
 
