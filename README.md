@@ -94,6 +94,20 @@ The script specifically looks at `build/squeezelite.bin` and `build/recovery_pad
 
 ---
 
+## Recipe
+
+1.  Build binaries with `idf.py build`
+2.  Run image-info.py and check the output for **⚠** warnings.
+3.  Add padding bytes to the first Segment with a warning and re-run image-info.py.
+4.  Repeat 2. & 3. until first warning is gone.  
+By adding bytes later Segments may receive (or lose) a warning. 
+5.  Continue with next marked Segment until all warnings are gone.  
+squeezelite.bin and recovery-padded.bin may need different paddings to lose all warnings.
+6.  Flash and test by entering in a terminal  
+`restart_ota` to switch from recovery to squeezelite  
+`recovery` to switch from squeezelite to recovery.
+
+
 ## Configuration Details
 
 ### CMake Variables

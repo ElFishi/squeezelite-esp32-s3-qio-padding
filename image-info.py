@@ -3,11 +3,15 @@ import subprocess
 import re
 import sys
 import os
+import argparse
 
-def analyze_files():
+
+def analyze_files(files=None):
     # List of files to process
-    target_files = ["build/squeezelite.bin", "build/recovery_padded.bin"]
-    TARGET_COL = 98
+    if files is None:
+        target_files = ["build/squeezelite.bin", "build/recovery_padded.bin"]
+    else:
+        target_files = files
 
     # Regex to extract hex values
     data_pattern = re.compile(r"len (0x[0-9a-fA-F]+) load (0x[0-9a-fA-F]+) file_offs (0x[0-9a-fA-F]+)")
@@ -55,4 +59,12 @@ def analyze_files():
                 )
 
 if __name__ == "__main__":
-    analyze_files()
+    parser = argparse.ArgumentParser(description="Analyze ESP32-S3 binary files using esptool.py")
+    parser.add_argument("files", nargs="*", help="Binary file(s) to analyze (optional)")
+
+    args = parser.parse_args()
+
+    if args.files:
+        analyze_files(args.files)
+    else:
+        analyze_files()
