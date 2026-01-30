@@ -62,11 +62,11 @@ RTC_PADDING is not really useful 😞
 
 ### Build Examples
 
-To add 16 bytes of padding to the RODATA section:
-> `idf.py build -DRODATA_PADDING=16`
+To add 4 bytes of padding to the RODATA section:
+> `idf.py build -DRODATA_PADDING=4`
 
 To nudge both IRAM and Flash Code sections:
-> `idf.py build -DIRAM_PADDING=24 -DIROM_PADDING=8`
+> `idf.py build -DIRAM_PADDING=4 -DIROM_PADDING=8`
 
 To reset and build without padding:
 > `idf.py fullclean`  
@@ -90,7 +90,7 @@ The reason for failure is the bootloader for the S3 expecting all segments to be
 Ensure your project is built, then run the script from the project root:
 > `python3 image-info.py`
 
-The script specifically looks at `build/squeezelite.bin` and `build/recovery_padded.bin`.
+The script by default looks at `build/squeezelite.bin` and `build/recovery_padded.bin`.
 
 ---
 
